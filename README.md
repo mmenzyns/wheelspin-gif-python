@@ -35,7 +35,7 @@ wheelspin-gif-python/
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/mmenzyns/wheelspin-gif-python
 cd wheelspin-gif-python
 
 # Install dependencies (Pillow)
