@@ -19,6 +19,10 @@ from wheelspin import (
     decision_wheel
 )
 
+# Create output directory for generated GIFs
+OUTPUT_DIR = Path(__file__).parent / "output"
+OUTPUT_DIR.mkdir(exist_ok=True)
+
 def example_1_basic():
     """Example 1: Basic wheel creation"""
     print("\n" + "="*50)
@@ -26,7 +30,8 @@ def example_1_basic():
     print("="*50)
     
     contestants = ["Alice", "Bob", "Charlie", "Diana", "Eve"]
-    winner = create_spinning_wheel(contestants, "example1_basic.gif")
+    output_path = OUTPUT_DIR / "example1_basic.gif"
+    winner = create_spinning_wheel(contestants, str(output_path))
     
     print(f"🏆 Contest winner: {winner}")
 
@@ -40,9 +45,10 @@ def example_2_advanced():
     teams = ["Red Dragons", "Blue Eagles", "Green Wolves", "Yellow Lions", "Purple Tigers"]
     custom_colors = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6"]
     
+    output_path = OUTPUT_DIR / "example2_teams.gif"
     winner, info = create_spinning_wheel_advanced(
         segments=teams,
-        output_file="example2_teams.gif",
+        output_file=str(output_path),
         size=600,
         colors=custom_colors,
         font_size=13,
@@ -61,7 +67,8 @@ def example_3_quick_spin():
     print("="*50)
     
     lunch_options = ["Pizza", "Sushi", "Burgers", "Salad", "Tacos"]
-    choice = quick_spin(lunch_options, "example3_lunch.gif")
+    output_path = OUTPUT_DIR / "example3_lunch.gif"
+    choice = quick_spin(lunch_options, str(output_path))
     
     print(f"🍽️ Lunch decision: {choice}")
 
@@ -94,9 +101,10 @@ def example_5_many_segments():
         "Australia", "Egypt", "Nigeria", "Kenya", "Morocco", "Algeria"
     ]
     
+    output_path = OUTPUT_DIR / "example5_countries.gif"
     winner = create_spinning_wheel(
         countries, 
-        "example5_countries.gif", 
+        str(output_path), 
         size=700  # Larger size for better text visibility
     )
     
@@ -113,9 +121,10 @@ def example_6_custom_colors():
     activities = ["Swimming", "Reading", "Cooking", "Dancing", "Painting", "Singing"]
     sunset_colors = ["#ff9ff3", "#f368e0", "#ff6b6b", "#ee5a24", "#feca57", "#ff9ff3"]
     
+    output_path = OUTPUT_DIR / "example6_sunset.gif"
     winner, info = create_spinning_wheel_advanced(
         segments=activities,
-        output_file="example6_sunset.gif",
+        output_file=str(output_path),
         size=500,
         colors=sunset_colors,
         font_size=12,
@@ -141,14 +150,14 @@ def main():
         print("\n" + "="*50)
         print("✅ ALL EXAMPLES COMPLETED!")
         print("="*50)
-        print("📁 Generated files:")
+        print(f"📁 Generated files in: {OUTPUT_DIR}")
         print("   • example1_basic.gif")
         print("   • example2_teams.gif") 
         print("   • example3_lunch.gif")
         print("   • decision_wheel.gif")
         print("   • example5_countries.gif")
         print("   • example6_sunset.gif")
-        print("\n🎉 Check out all the generated GIF files!")
+        print(f"\n🎉 Check out all the generated GIF files in {OUTPUT_DIR}/")
         
     except Exception as e:
         print(f"❌ Error: {e}")

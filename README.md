@@ -28,6 +28,7 @@ wheelspin-gif-python/
 - 🎬 **Smooth Animation** - Cubic easing for natural spinning motion
 - 🔄 **Adaptive Duration** - Animation length scales with number of segments
 - 💎 **High Quality** - Clean, professional-looking output
+- 🌍 **Unicode & Emoji Support** - Full UTF-8 support including emoji, Cyrillic, Chinese, Japanese, Arabic, and more!
 
 ## 🚀 Quick Start
 
@@ -137,6 +138,44 @@ from wheelspin import quick_spin
 
 result = quick_spin(["Heads", "Tails"], "coinflip.gif")
 ```
+
+### Unicode Support 🌍
+```python
+from wheelspin import create_spinning_wheel
+
+# International cities
+cities = ["Paris", "東京", "Москва", "北京", "Cairo"]
+winner = create_spinning_wheel(cities, "cities.gif")
+
+# Multilingual greetings
+greetings = ["Hello", "Bonjour", "こんにちは", "你好", "مرحبا"]
+winner = create_spinning_wheel(greetings, "greetings.gif")
+
+# Accented names
+names = ["José", "François", "Søren", "Łukasz"]
+winner = create_spinning_wheel(names, "names.gif")
+```
+
+**Supported Unicode:**
+- ✅ Cyrillic (Москва, Привет, Київ)
+- ✅ Chinese (北京, 你好, 上海)
+- ✅ Japanese (東京, こんにちは, 大阪)
+- ✅ Arabic (مرحبا, شكرا)
+- ✅ Accented Latin (Café, José, Zürich)
+- ✅ Special Symbols (★ ♥ ♪ ☀ ☁ ⚡)
+
+See `examples/unicode_demo.py` for more Unicode examples!
+
+**Supported Unicode:**
+- ✅ Cyrillic (Москва, Привет, Київ)
+- ✅ Chinese (北京, 你好, 上海)
+- ✅ Japanese (東京, こんにちは, 大阪)
+- ✅ Arabic (مرحبا, شكرا)
+- ✅ Accented Latin (Café, José, Zürich)
+- ✅ Special Symbols (★ ♥ ♪ ☀ ☁ ⚡)
+- ⚠️ Emoji (render as black/white outlined symbols due to PIL limitations)
+
+See `examples/unicode_demo.py` for more Unicode examples!
 
 ## 🎯 Use Cases
 

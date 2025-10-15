@@ -4,7 +4,8 @@ WheelGenerator - Core implementation for spinning wheel generation
 
 from PIL import Image, ImageDraw, ImageFont
 import math
-from typing import List, Tuple
+import platform
+from typing import List, Tuple, Optional
 
 
 class WheelGenerator:
@@ -17,6 +18,7 @@ class WheelGenerator:
         self.animation_speed = animation_speed
         self.transparent_color = (255, 0, 255, 0)
         self.circle_degrees = 360
+        self._font_cache = {}  # Cache loaded fonts
     
     def distribute_colors(self, num_segments: int) -> List[str]:
         """
@@ -77,15 +79,60 @@ class WheelGenerator:
         
         return color_distribution
     
+    def _load_font(self, size: int = None) -> ImageFont.FreeTypeFont:
+        """
+        Load a font that supports Unicode characters.
+        Note: PIL/Pillow has limited emoji support - emoji may render as outlined symbols.
+        Tries multiple font options with fallback to default.
+        """
+        if size is None:
+            size = self.font_size
+        
+        cache_key = size
+        if cache_key in self._font_cache:
+            return self._font_cache[cache_key]
+        
+        # List of fonts to try, in order of preference
+        # These fonts have good Unicode support (emoji will render as black/white symbols)
+        font_options = [
+            # macOS fonts with best Unicode coverage
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",  # Best Unicode support
+            "/System/Library/Fonts/Helvetica.ttc",
+            "/System/Library/Fonts/Supplemental/Arial.ttf",
+            # Linux fonts
+            "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",  # Good Unicode
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/unifont/unifont.ttf",
+            # Windows fonts
+            "Arial Unicode MS",
+            # Generic fallbacks
+            "Arial",
+            "DejaVuSans",
+            "Helvetica",
+        ]
+        
+        font = None
+        for font_name in font_options:
+            try:
+                font = ImageFont.truetype(font_name, size)
+                break
+            except (IOError, OSError):
+                continue
+        
+        # Ultimate fallback to PIL default font
+        if font is None:
+            font = ImageFont.load_default()
+        
+        self._font_cache[cache_key] = font
+        return font
+    
     def get_text_dimensions(self, text: str) -> dict:
         """Get the dimensions of text when rendered"""
         temp_img = Image.new('RGBA', (1, 1), (0, 0, 0, 0))
         temp_draw = ImageDraw.Draw(temp_img)
         
-        try:
-            font = ImageFont.truetype("Arial", self.font_size)
-        except:
-            font = ImageFont.load_default()
+        font = self._load_font()
         
         bbox = temp_draw.textbbox((0, 0), text, font=font)
         width = bbox[2] - bbox[0]

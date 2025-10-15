@@ -1,2 +1,31 @@
 *.gif
 **/__pycache__
+examples/output/
+
+# Python build artifacts
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python cache
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+.pytest_cache/
