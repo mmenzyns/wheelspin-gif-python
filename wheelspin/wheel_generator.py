@@ -22,64 +22,23 @@ class WheelGenerator:
     
     def distribute_colors(self, num_segments: int) -> List[str]:
         """
-        Distribute colors to segments ensuring no two adjacent segments have the same color.
-        Uses a greedy approach to maximize color separation.
+        Basic color distribution - simply cycles through available colors.
         """
-        if num_segments <= len(self.colors):
-            # If we have enough colors, just use them in order
-            return [self.colors[i % len(self.colors)] for i in range(num_segments)]
-        
-        # If we have more segments than colors, distribute intelligently
-        color_distribution = []
-        num_colors = len(self.colors)
-        
-        # Calculate how many times each color should appear
-        times_per_color = num_segments // num_colors
-        extra_segments = num_segments % num_colors
-        
-        # Create a list of color indices with their usage counts
-        color_usage = [times_per_color] * num_colors
-        for i in range(extra_segments):
-            color_usage[i] += 1
-        
-        # Distribute colors to maximize spacing between same colors
-        used_colors = [0] * num_colors  # Track how many times each color has been used
-        
-        for i in range(num_segments):
-            # Find the best color for this position
-            # Avoid the previous color if possible
-            prev_color_idx = None
-            if i > 0:
-                prev_color_idx = self.colors.index(color_distribution[i - 1])
-            
-            # Also avoid the first color when placing the last segment (wraparound)
-            avoid_wraparound = None
-            if i == num_segments - 1 and num_segments > 1:
-                avoid_wraparound = self.colors.index(color_distribution[0])
-            
-            # Find available colors (ones we still need to use)
-            available = [idx for idx in range(num_colors) if used_colors[idx] < color_usage[idx]]
-            
-            # Filter out the previous color and wraparound color if possible
-            if len(available) > 1:
-                if prev_color_idx is not None and prev_color_idx in available:
-                    filtered = [idx for idx in available if idx != prev_color_idx]
-                    if filtered:
-                        available = filtered
-                
-                if avoid_wraparound is not None and avoid_wraparound in available:
-                    filtered = [idx for idx in available if idx != avoid_wraparound]
-                    if filtered:
-                        available = filtered
-            
-            # Pick the first available color
-            chosen_idx = available[0]
-            color_distribution.append(self.colors[chosen_idx])
-            used_colors[chosen_idx] += 1
-        
-        return color_distribution
-    
-    def _load_font(self, size: int = None) -> ImageFont.FreeTypeFont:
+        colors = [self.colors[i % len(self.colors)] for i in range(num_segments)]
+        if colors[0] == colors[-1] and num_segments > 1:
+            # Swap last color with second to last to avoid adjacent duplicates
+            colors[-1], colors[-2] = colors[-2], colors[-1]
+        return colors
+
+    def truncate_text(self, text: str, max_length: int = 17) -> str:
+        """
+        Truncate text to maximum length and add ellipsis if needed.
+        """
+        if len(text) <= max_length:
+            return text
+        return text[:max_length-3].rstrip() + "..."
+
+    def _load_font(self, size: int = None, debug: bool = False) -> ImageFont.FreeTypeFont:
         """
         Load a font that supports Unicode characters.
         Note: PIL/Pillow has limited emoji support - emoji may render as outlined symbols.
@@ -99,40 +58,91 @@ class WheelGenerator:
             "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",  # Best Unicode support
             "/System/Library/Fonts/Helvetica.ttc",
             "/System/Library/Fonts/Supplemental/Arial.ttf",
-            # Linux fonts
+            # Linux fonts (common in Docker/server environments)
             "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",  # Good Unicode
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",      # Has diacritics
             "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
             "/usr/share/fonts/truetype/unifont/unifont.ttf",
+            # Docker/Alpine fonts
+            "/usr/share/fonts/TTF/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
             # Windows fonts
             "Arial Unicode MS",
-            # Generic fallbacks
+            # Generic fallbacks (try system fonts)
             "Arial",
-            "DejaVuSans",
+            "DejaVuSans", 
             "Helvetica",
+            "Liberation Sans",
+            "Noto Sans"
         ]
         
         font = None
+        font_used = "default"
+        
         for font_name in font_options:
             try:
                 font = ImageFont.truetype(font_name, size)
+                font_used = font_name
+                if debug:
+                    print(f"✅ Loaded font: {font_name}")
                 break
             except (IOError, OSError):
+                if debug:
+                    print(f"❌ Font not found: {font_name}")
                 continue
         
         # Ultimate fallback to PIL default font
         if font is None:
             font = ImageFont.load_default()
+            font_used = "PIL default (limited Unicode)"
+            if debug:
+                print(f"⚠️  Using fallback: {font_used}")
+        
+        if debug:
+            print(f"🎨 Final font: {font_used}")
         
         self._font_cache[cache_key] = font
         return font
     
-    def get_text_dimensions(self, text: str) -> dict:
+    def calculate_dynamic_font_size(self, radius: int, angle_per_segment: float, 
+                                   position_name: str, num_segments: int) -> int:
+        """Calculate dynamic font size based on available space and positioning"""
+        # Base font size from initialization
+        base_size = self.font_size
+        
+        # Scale factor based on wheel size
+        size_factor = radius / 200.0  # Scale relative to radius 200
+        
+        # Position factor: inner has more radial space, can use larger text
+        if position_name == 'inner':
+            position_factor = 1.8  # 80% larger for inner positioning
+        else:
+            position_factor = 1.2  # 20% larger for outer positioning
+        
+        # Segment factor: fewer segments = more angular space = larger text
+        if num_segments <= 4:
+            segment_factor = 1.4
+        elif num_segments <= 8:
+            segment_factor = 1.2
+        elif num_segments <= 16:
+            segment_factor = 1.0
+        else:
+            segment_factor = 0.9
+        
+        # Calculate final font size
+        dynamic_size = int(base_size * size_factor * position_factor * segment_factor)
+        
+        # Ensure reasonable bounds
+        return max(8, min(dynamic_size, 28))
+    
+    def get_text_dimensions(self, text: str, font_size: int = None) -> dict:
         """Get the dimensions of text when rendered"""
         temp_img = Image.new('RGBA', (1, 1), (0, 0, 0, 0))
         temp_draw = ImageDraw.Draw(temp_img)
         
-        font = self._load_font()
+        # Use provided font size or default
+        size_to_use = font_size if font_size is not None else self.font_size
+        font = self._load_font(size_to_use)
         
         bbox = temp_draw.textbbox((0, 0), text, font=font)
         width = bbox[2] - bbox[0]
@@ -159,11 +169,17 @@ class WheelGenerator:
         }
     
     def calculate_consistent_text_position(self, radius: int, angle_per_segment: float, labels: List[str]) -> dict:
-        """Calculate consistent text position for all labels"""
+        """Calculate consistent text position for all labels with dynamic font sizing"""
         needs_outer = False
+        num_segments = len(labels)
+        
+        # Try inner positioning first with dynamic font size
+        inner_font_size = self.calculate_dynamic_font_size(radius, angle_per_segment, 'inner', num_segments)
         
         for label in labels:
-            text_dims = self.get_text_dimensions(label)
+            # Use truncated text for space calculations
+            display_label = self.truncate_text(label, 17)
+            text_dims = self.get_text_dimensions(display_label, inner_font_size)
             inner_space = self.calculate_segment_space(radius, angle_per_segment, 0.65)
             
             text_fits_inner = (text_dims['width'] <= inner_space['arc_length'] * 0.8 and
@@ -176,37 +192,61 @@ class WheelGenerator:
         position_ratio = 0.85 if needs_outer else 0.65
         position_name = 'outer' if needs_outer else 'inner'
         
+        # Calculate final font size for chosen position
+        final_font_size = self.calculate_dynamic_font_size(radius, angle_per_segment, position_name, num_segments)
+        
         space = self.calculate_segment_space(radius, angle_per_segment, position_ratio)
         
         return {
             'text_radius_ratio': position_ratio,
             'text_radius': space['text_radius'],
             'position': position_name,
+            'font_size': final_font_size,
             'consistent': True
         }
     
     def draw_segment_label(self, draw, center: int, radius: int, angle: float, label: str, 
                           angle_per_segment: float, consistent_position: dict):
-        """Draw a text label on a wheel segment"""
+        """Draw a text label on a wheel segment using calculated position (inner/outer)"""
         angle_rad = math.radians(angle)
         
-        text_radius = consistent_position['text_radius']
+        # Truncate text to 17 characters max with ellipsis
+        display_label = self.truncate_text(label, 17)
+        
+        # Use dynamic font size from consistent position calculation
+        dynamic_font_size = consistent_position['font_size']
+        text_dims = self.get_text_dimensions(display_label, dynamic_font_size)
+        font = text_dims['font']
+        text_width = text_dims['width']
+        
+        # Calculate positioning so text ends at wheel boundary (with margin)
+        wheel_edge_radius = radius * 0.95  # 95% of wheel radius for small margin
+        
+        # Estimate how much the text extends radially outward from its center
+        # For horizontal text, half the text width extends in each direction
+        text_radial_extent = text_width * 0.5
+        
+        # Position text center so its outer edge aligns with wheel boundary
+        text_radius = wheel_edge_radius - text_radial_extent
+        
+        # Ensure text doesn't go too close to center (minimum radius)
+        min_radius = radius * 0.3
+        text_radius = max(text_radius, min_radius)
+        
         text_x = center + text_radius * math.cos(angle_rad)
         text_y = center + text_radius * math.sin(angle_rad)
         
-        text_dims = self.get_text_dimensions(label)
-        font = text_dims['font']
-        
-        # Create temporary image for rotated text
-        temp_img = Image.new('RGBA', (200, 50), (0, 0, 0, 0))
+        # Create temporary image for rotated text with adequate size
+        temp_size = max(300, int(text_width * 1.5), 100)
+        temp_img = Image.new('RGBA', (temp_size, temp_size), (0, 0, 0, 0))
         temp_draw = ImageDraw.Draw(temp_img)
-        temp_draw.text((100, 25), label, fill='black', font=font, anchor='mm')
         
-        # Adjust rotation for readability
-        if 90 < (angle % 360) < 270:
-            angle += 180
+        # Draw text at center of temp image
+        temp_center = temp_size // 2
+        temp_draw.text((temp_center, temp_center), display_label, fill='black', font=font, anchor='mm')
         
-        rotated_text = temp_img.rotate(-angle, expand=True)
+        rotation_angle = -angle
+        rotated_text = temp_img.rotate(rotation_angle, expand=True)
         
         paste_x = int(text_x - rotated_text.width / 2)
         paste_y = int(text_y - rotated_text.height / 2)
